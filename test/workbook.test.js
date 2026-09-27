@@ -157,6 +157,11 @@ test("createSpreadsheetView renders headers, labels, and sheet switching", () =>
     view.setActiveSheet(1);
     assert.equal(container.children[0].textContent, "Beta");
     assert.equal(container.children[1].children[1].children[1].children[0].value, "X1");
+
+    firstInput.value = "alpha-again";
+    firstInput.dispatchEvent("input");
+    assert.equal(workbook.getCell(0, 0, 0).value, "alpha-again");
+    assert.equal(workbook.getCell(1, 0, 0).value, "X1");
   });
 });
 

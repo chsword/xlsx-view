@@ -35,6 +35,7 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
   let activeSheet = sheet;
 
   function render() {
+    const renderedSheet = activeSheet;
     const sheetModel = workbook.getSheet(activeSheet);
 
     if (!sheetModel) {
@@ -84,7 +85,7 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
         td.style.padding = "4px";
         td.appendChild(
           createInput(cell, `${sheetModel?.name ?? "Sheet"} ${getColumnLabel(columnIndex)}${rowIndex + 1}`, (value) => {
-            workbook.setCell(activeSheet, rowIndex, columnIndex, value);
+            workbook.setCell(renderedSheet, rowIndex, columnIndex, value);
           })
         );
         tr.appendChild(td);
