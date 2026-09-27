@@ -50,6 +50,15 @@ test("createWorkbook can apply agent-friendly operations by sheet name", () => {
   });
 });
 
+test("createWorkbook rejects invalid sheet and coordinate references", () => {
+  const workbook = createWorkbook();
+
+  assert.throws(() => workbook.setCell("Missing", 0, 0, "x"), /Unknown sheet: Missing/);
+  assert.throws(() => workbook.updateCell("Missing", 0, 0, {}), /Unknown sheet: Missing/);
+  assert.throws(() => workbook.setCell(0, -1, 0, "x"), /Invalid row index: -1/);
+  assert.throws(() => workbook.updateCell(0, 0, -1, {}), /Invalid column index: -1/);
+});
+
 class FakeElement {
   constructor(tagName) {
     this.tagName = tagName;

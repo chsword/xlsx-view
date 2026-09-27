@@ -101,6 +101,10 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
   return {
     render,
     setActiveSheet(nextSheet) {
+      if (!workbook.getSheet(nextSheet)) {
+        throw new Error(`Unknown sheet: ${nextSheet}`);
+      }
+
       activeSheet = nextSheet;
       render();
     }

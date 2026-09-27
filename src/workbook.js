@@ -49,6 +49,16 @@ function ensureCell(sheet, rowIndex, columnIndex) {
   return row[columnIndex];
 }
 
+function validateCoordinates(rowIndex, columnIndex) {
+  if (!Number.isInteger(rowIndex) || rowIndex < 0) {
+    throw new Error(`Invalid row index: ${rowIndex}`);
+  }
+
+  if (!Number.isInteger(columnIndex) || columnIndex < 0) {
+    throw new Error(`Invalid column index: ${columnIndex}`);
+  }
+}
+
 export function createWorkbook(options = {}) {
   const workbook = {
     sheets: (options.sheets?.length ? options.sheets : [{ name: "Sheet1", rows: [[]] }]).map((sheet, index) =>
@@ -79,6 +89,7 @@ export function createWorkbook(options = {}) {
         throw new Error(`Unknown sheet: ${sheetRef}`);
       }
 
+      validateCoordinates(rowIndex, columnIndex);
       const cell = ensureCell(sheet, rowIndex, columnIndex);
       cell.value = value ?? "";
       return cell;
@@ -90,6 +101,7 @@ export function createWorkbook(options = {}) {
         throw new Error(`Unknown sheet: ${sheetRef}`);
       }
 
+      validateCoordinates(rowIndex, columnIndex);
       const cell = ensureCell(sheet, rowIndex, columnIndex);
       if ("value" in detail) {
         cell.value = detail.value ?? "";
