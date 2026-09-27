@@ -104,7 +104,7 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 }: Spread
         td.style.padding = "4px";
         td.appendChild(
           createInput(cell, `${sheetModel.name} ${getColumnLabel(columnIndex)}${rowIndex + 1}`, (value) => {
-            resolvedWorkbook.setCell(renderedSheet, rowIndex, columnIndex, value);
+            resolvedWorkbook.updateCell(renderedSheet, rowIndex, columnIndex, { value, formula: null });
           })
         );
         tr.appendChild(td);

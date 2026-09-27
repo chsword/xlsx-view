@@ -161,6 +161,7 @@ export function createWorkbook(options: { sheets?: SheetInput[] } = {}): Workboo
         return null;
       }
 
+      validateCoordinates(targetRowIndex, targetColumnIndex);
       return resolveSheet(workbook, targetSheetRef)?.rows?.[targetRowIndex]?.[targetColumnIndex] ?? null;
     },
     setCell(sheetRef, rowIndex, columnIndex, value) {

@@ -56,6 +56,8 @@ test("createWorkbook rejects invalid sheet and coordinate references", () => {
 
   assert.throws(() => workbook.setCell("Missing", 0, 0, "x"), /Unknown sheet: Missing/);
   assert.throws(() => workbook.updateCell("Missing", 0, 0, {}), /Unknown sheet: Missing/);
+  assert.throws(() => workbook.getCell(0, -1, 0), /Invalid row index: -1/);
+  assert.throws(() => workbook.getCell(0, 0.5, 0), /Invalid row index: 0.5/);
   assert.throws(() => workbook.setCell(0, -1, 0, "x"), /Invalid row index: -1/);
   assert.throws(() => workbook.updateCell(0, 0, -1, {}), /Invalid column index: -1/);
 });
@@ -143,7 +145,7 @@ test("createSpreadsheetView validates required arguments", () => {
 test("createSpreadsheetView renders headers, labels, and sheet switching", () => {
   const workbook = createWorkbook({
     sheets: [
-      { name: "Alpha", rows: [[{ value: "A1" }, { value: "B1" }], [{ value: "A2" }]] },
+      { name: "Alpha", rows: [[{ value: "A1", formula: "=LOWER(\"A1\")" }, { value: "B1" }], [{ value: "A2" }]] },
       { name: "Beta", rows: [[{ value: "X1" }]] }
     ]
   });
@@ -169,6 +171,7 @@ test("createSpreadsheetView renders headers, labels, and sheet switching", () =>
     firstInput.value = "changed";
     firstInput.dispatchEvent("input");
     assert.equal(workbook.getCell(0, 0, 0).value, "changed");
+    assert.equal(workbook.getCell(0, 0, 0).formula, null);
 
     view.setActiveSheet(1);
     assert.equal(container.children[0].textContent, "Beta");
