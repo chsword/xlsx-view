@@ -1,17 +1,30 @@
-function createInput(cell, label, onChange) {
+import type { Cell, SheetReference, Workbook } from "./workbook.js";
+
+export interface SpreadsheetView {
+  render(): void;
+  setActiveSheet(nextSheet: SheetReference): void;
+}
+
+interface SpreadsheetViewOptions {
+  container?: HTMLElement | null;
+  workbook?: Workbook;
+  sheet?: SheetReference;
+}
+
+function createInput(cell: Cell | undefined, label: string, onChange: (value: string) => void): HTMLInputElement {
   const input = document.createElement("input");
   input.type = "text";
-  input.value = cell?.value ?? "";
+  input.value = String(cell?.value ?? "");
   input.dataset.formula = cell?.formula ?? "";
   input.placeholder = "Cell";
   input.setAttribute("aria-label", label);
   input.addEventListener("input", (event) => {
-    onChange(event.target.value);
+    onChange((event.target as HTMLInputElement).value);
   });
   return input;
 }
 
-function getColumnLabel(columnIndex) {
+function getColumnLabel(columnIndex: number): string {
   let label = "";
   let current = columnIndex;
 
@@ -23,7 +36,7 @@ function getColumnLabel(columnIndex) {
   return label;
 }
 
-export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
+export function createSpreadsheetView({ container, workbook, sheet = 0 }: SpreadsheetViewOptions = {}): SpreadsheetView {
   if (!container) {
     throw new Error("container is required");
   }
@@ -32,26 +45,28 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
     throw new Error("workbook is required");
   }
 
+  const resolvedContainer = container;
+  const resolvedWorkbook = workbook;
   let activeSheet = sheet;
 
-  function render() {
+  function render(): void {
     const renderedSheet = activeSheet;
-    const sheetModel = workbook.getSheet(activeSheet);
+    const sheetModel = resolvedWorkbook.getSheet(activeSheet);
 
     if (!sheetModel) {
       throw new Error(`Unknown sheet: ${activeSheet}`);
     }
 
-    container.innerHTML = "";
+    resolvedContainer.innerHTML = "";
 
     const title = document.createElement("h2");
-    title.textContent = sheetModel?.name ?? "Sheet";
-    container.appendChild(title);
+    title.textContent = sheetModel.name;
+    resolvedContainer.appendChild(title);
 
     const table = document.createElement("table");
     table.style.borderCollapse = "collapse";
     table.style.border = "1px solid #999";
-    table.setAttribute("aria-label", `${sheetModel?.name ?? "Sheet"} worksheet`);
+    table.setAttribute("aria-label", `${sheetModel.name} worksheet`);
 
     const headerRow = document.createElement("tr");
     const corner = document.createElement("th");
@@ -59,7 +74,7 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
     corner.textContent = "#";
     headerRow.appendChild(corner);
 
-    const maxColumns = Math.max(5, ...(sheetModel?.rows ?? [[]]).map((row) => row.length));
+    const maxColumns = Math.max(5, ...sheetModel.rows.map((row) => row.length));
     for (let columnIndex = 0; columnIndex < maxColumns; columnIndex += 1) {
       const th = document.createElement("th");
       th.scope = "col";
@@ -70,10 +85,10 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
     }
     table.appendChild(headerRow);
 
-    const rowCount = Math.max(5, sheetModel?.rows?.length ?? 0);
+    const rowCount = Math.max(5, sheetModel.rows.length);
 
     for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
-      const row = sheetModel?.rows?.[rowIndex] ?? [];
+      const row = sheetModel.rows[rowIndex] ?? [];
       const tr = document.createElement("tr");
       const rowHeader = document.createElement("th");
       rowHeader.scope = "row";
@@ -81,22 +96,24 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
       rowHeader.style.border = "1px solid #999";
       rowHeader.style.padding = "4px";
       tr.appendChild(rowHeader);
+
       for (let columnIndex = 0; columnIndex < maxColumns; columnIndex += 1) {
         const cell = row[columnIndex];
         const td = document.createElement("td");
         td.style.border = "1px solid #999";
         td.style.padding = "4px";
         td.appendChild(
-          createInput(cell, `${sheetModel?.name ?? "Sheet"} ${getColumnLabel(columnIndex)}${rowIndex + 1}`, (value) => {
-            workbook.setCell(renderedSheet, rowIndex, columnIndex, value);
+          createInput(cell, `${sheetModel.name} ${getColumnLabel(columnIndex)}${rowIndex + 1}`, (value) => {
+            resolvedWorkbook.setCell(renderedSheet, rowIndex, columnIndex, value);
           })
         );
         tr.appendChild(td);
       }
+
       table.appendChild(tr);
     }
 
-    container.appendChild(table);
+    resolvedContainer.appendChild(table);
   }
 
   render();
@@ -104,7 +121,7 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
   return {
     render,
     setActiveSheet(nextSheet) {
-      if (!workbook.getSheet(nextSheet)) {
+      if (!resolvedWorkbook.getSheet(nextSheet)) {
         throw new Error(`Unknown sheet: ${nextSheet}`);
       }
 

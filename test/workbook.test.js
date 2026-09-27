@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { createSpreadsheetView, createWorkbook } from "../src/index.js";
+import { createSpreadsheetView, createWorkbook } from "../dist/index.js";
 
 test("createWorkbook exposes a default sheet and cell operations", () => {
   const workbook = createWorkbook();

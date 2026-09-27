@@ -1,4 +1,4 @@
-import { createSpreadsheetView, createWorkbook } from "../src/index.js";
+import { createSpreadsheetView, createWorkbook } from "../dist/index.js";
 
 const workbook = createWorkbook({
   sheets: [

@@ -1,8 +1,76 @@
-function cloneRows(rows = [[]]) {
+export type SheetReference = number | string;
+
+export interface Cell {
+  value: unknown;
+  formula: string | null;
+  style: Record<string, unknown>;
+  comment: string | null;
+}
+
+export type CellInput = Partial<Cell> | string | number | boolean | null | undefined;
+
+export interface Sheet {
+  name: string;
+  rows: Cell[][];
+}
+
+export interface SheetInput {
+  name?: string;
+  rows?: CellInput[][];
+}
+
+export interface WorkbookSnapshot {
+  sheets: Sheet[];
+}
+
+export interface CellUpdate {
+  value?: unknown;
+  formula?: string | null;
+  style?: Record<string, unknown>;
+  comment?: string | null;
+}
+
+type AddSheetOperation = {
+  type: "addSheet";
+  name?: string;
+  rows?: CellInput[][];
+};
+
+type SetCellOperation = {
+  type: "setCell";
+  sheet?: SheetReference;
+  row: number;
+  column: number;
+  value: unknown;
+};
+
+type UpdateCellOperation = {
+  type: "updateCell";
+  sheet?: SheetReference;
+  row: number;
+  column: number;
+  detail?: CellUpdate;
+};
+
+export type WorkbookOperation = AddSheetOperation | SetCellOperation | UpdateCellOperation;
+
+export interface Workbook {
+  listSheets(): string[];
+  getSheet(sheetRef?: SheetReference): Sheet | undefined;
+  addSheet(name?: string, rows?: CellInput[][]): Sheet;
+  getCell(rowIndex: number, columnIndex: number): Cell | null;
+  getCell(sheetRef: SheetReference, rowIndex: number, columnIndex: number): Cell | null;
+  setCell(sheetRef: SheetReference, rowIndex: number, columnIndex: number, value: unknown): Cell;
+  updateCell(sheetRef: SheetReference, rowIndex: number, columnIndex: number, detail?: CellUpdate): Cell;
+  applyOperation(operation: WorkbookOperation): Sheet | Cell;
+  toJSON(): WorkbookSnapshot;
+}
+
+function cloneRows(rows: CellInput[][] = [[]]): Cell[][] {
   return rows.map((row) => row.map((cell) => normalizeCell(cell)));
 }
 
-function normalizeCell(cell) {
+function normalizeCell(cell: CellInput): Cell {
   if (cell && typeof cell === "object" && !Array.isArray(cell)) {
     return {
       value: cell.value ?? "",
@@ -20,14 +88,14 @@ function normalizeCell(cell) {
   };
 }
 
-function normalizeSheet(sheet, index) {
+function normalizeSheet(sheet: SheetInput | undefined, index: number): Sheet {
   return {
     name: sheet?.name || `Sheet${index + 1}`,
     rows: cloneRows(sheet?.rows?.length ? sheet.rows : [[]])
   };
 }
 
-function resolveSheet(workbook, sheetRef = 0) {
+function resolveSheet(workbook: WorkbookSnapshot, sheetRef: SheetReference = 0): Sheet | undefined {
   if (typeof sheetRef === "number") {
     return workbook.sheets[sheetRef];
   }
@@ -35,7 +103,7 @@ function resolveSheet(workbook, sheetRef = 0) {
   return workbook.sheets.find((sheet) => sheet.name === sheetRef);
 }
 
-function ensureCell(sheet, rowIndex, columnIndex) {
+function ensureCell(sheet: Sheet, rowIndex: number, columnIndex: number): Cell {
   while (sheet.rows.length <= rowIndex) {
     sheet.rows.push([]);
   }
@@ -49,7 +117,7 @@ function ensureCell(sheet, rowIndex, columnIndex) {
   return row[columnIndex];
 }
 
-function validateCoordinates(rowIndex, columnIndex) {
+function validateCoordinates(rowIndex: number, columnIndex: number): void {
   if (!Number.isInteger(rowIndex) || rowIndex < 0) {
     throw new Error(`Invalid row index: ${rowIndex}`);
   }
@@ -59,8 +127,8 @@ function validateCoordinates(rowIndex, columnIndex) {
   }
 }
 
-export function createWorkbook(options = {}) {
-  const workbook = {
+export function createWorkbook(options: { sheets?: SheetInput[] } = {}): Workbook {
+  const workbook: WorkbookSnapshot = {
     sheets: (options.sheets?.length ? options.sheets : [{ name: "Sheet1", rows: [[]] }]).map((sheet, index) =>
       normalizeSheet(sheet, index)
     )
@@ -78,15 +146,22 @@ export function createWorkbook(options = {}) {
       workbook.sheets.push(sheet);
       return sheet;
     },
-    getCell(sheetRef, rowIndex, columnIndex) {
-      if (columnIndex === undefined) {
-        columnIndex = rowIndex;
-        rowIndex = sheetRef;
-        sheetRef = 0;
+    getCell(sheetRef: SheetReference | number, rowIndex?: number, columnIndex?: number) {
+      let targetSheetRef: SheetReference = sheetRef;
+      let targetRowIndex = rowIndex;
+      let targetColumnIndex = columnIndex;
+
+      if (targetColumnIndex === undefined) {
+        targetColumnIndex = targetRowIndex;
+        targetRowIndex = typeof sheetRef === "number" ? sheetRef : undefined;
+        targetSheetRef = 0;
       }
 
-      const sheet = resolveSheet(workbook, sheetRef);
-      return sheet?.rows?.[rowIndex]?.[columnIndex] ?? null;
+      if (targetRowIndex === undefined || targetColumnIndex === undefined) {
+        return null;
+      }
+
+      return resolveSheet(workbook, targetSheetRef)?.rows?.[targetRowIndex]?.[targetColumnIndex] ?? null;
     },
     setCell(sheetRef, rowIndex, columnIndex, value) {
       const sheet = resolveSheet(workbook, sheetRef);
@@ -132,7 +207,7 @@ export function createWorkbook(options = {}) {
         case "updateCell":
           return this.updateCell(operation.sheet ?? 0, operation.row, operation.column, operation.detail);
         default:
-          throw new Error(`Unsupported operation: ${operation?.type}`);
+          throw new Error(`Unsupported operation: ${(operation as { type?: string } | undefined)?.type}`);
       }
     },
     toJSON() {

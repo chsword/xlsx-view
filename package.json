@@ -3,15 +3,23 @@
   "version": "1.0.0",
   "description": "A lightweight xlsx-oriented workbook model and browser spreadsheet view scaffold.",
   "type": "module",
-  "main": "./src/index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.js"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
   },
   "files": [
-    "src",
-    "examples"
+    "dist",
+    "examples",
+    "index.html",
+    "main.js"
   ],
   "scripts": {
+    "build": "tsc -p /home/runner/work/xlsx-view/xlsx-view/tsconfig.json",
+    "pretest": "npm run build",
     "test": "node --test"
   },
   "keywords": [
@@ -21,5 +29,11 @@
     "editor"
   ],
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  }
 }
