@@ -2,6 +2,7 @@ import type { SheetReference, Workbook } from "./workbook.js";
 export interface SpreadsheetView {
     render(): void;
     setActiveSheet(nextSheet: SheetReference): void;
+    getActiveSheet(): SheetReference;
 }
 interface SpreadsheetViewOptions {
     container?: HTMLElement | null;

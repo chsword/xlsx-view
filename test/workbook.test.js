@@ -51,6 +51,47 @@ test("createWorkbook can apply agent-friendly operations by sheet name", () => {
   });
 });
 
+test("createWorkbook supports sheet and row-column structural APIs", () => {
+  const workbook = createWorkbook({
+    sheets: [{ name: "Plan", rows: [[{ value: "A1" }, { value: "B1" }], [{ value: "A2" }, { value: "B2" }]] }]
+  });
+
+  workbook.renameSheet("Plan", "Roadmap");
+  assert.deepEqual(workbook.listSheets(), ["Roadmap"]);
+
+  workbook.insertRow("Roadmap", 1);
+  assert.equal(workbook.getCell("Roadmap", 1, 0).value, "");
+  assert.equal(workbook.getCell("Roadmap", 2, 0).value, "A2");
+
+  workbook.insertColumn("Roadmap", 1);
+  assert.equal(workbook.getCell("Roadmap", 0, 1).value, "");
+  assert.equal(workbook.getCell("Roadmap", 0, 2).value, "B1");
+
+  workbook.deleteRow("Roadmap", 1);
+  workbook.deleteColumn("Roadmap", 1);
+  assert.equal(workbook.getCell("Roadmap", 0, 0).value, "A1");
+  assert.equal(workbook.getCell("Roadmap", 0, 1).value, "B1");
+
+  workbook.applyOperations([
+    { type: "insertRow", row: 2 },
+    { type: "setCell", row: 2, column: 0, value: "A3" },
+    { type: "insertColumn", column: 2 },
+    { type: "updateCell", row: 2, column: 2, detail: { value: "C3", style: { bold: true } } }
+  ]);
+
+  assert.equal(workbook.getCell(0, 2, 0).value, "A3");
+  assert.deepEqual(workbook.getCell(0, 2, 2), {
+    value: "C3",
+    formula: null,
+    style: { bold: true },
+    comment: null
+  });
+
+  workbook.addSheet("Archive");
+  assert.equal(workbook.removeSheet("Archive").name, "Archive");
+  assert.throws(() => workbook.removeSheet("Roadmap"), /Workbook must contain at least one sheet/);
+});
+
 test("createWorkbook rejects invalid sheet and coordinate references", () => {
   const workbook = createWorkbook();
 
@@ -61,6 +102,9 @@ test("createWorkbook rejects invalid sheet and coordinate references", () => {
   assert.throws(() => workbook.getCell(0, 0, -1), /Invalid column index: -1/);
   assert.throws(() => workbook.setCell(0, -1, 0, "x"), /Invalid row index: -1/);
   assert.throws(() => workbook.updateCell(0, 0, -1, {}), /Invalid column index: -1/);
+  assert.throws(() => workbook.renameSheet(0, "   "), /Sheet name is required/);
+  assert.throws(() => workbook.insertRow(0, 0, 0), /Invalid count: 0/);
+  assert.throws(() => workbook.insertColumn(0, 0, -1), /Invalid count: -1/);
 });
 
 test("createWorkbook rejects unsupported operations", () => {
@@ -155,12 +199,17 @@ test("createSpreadsheetView renders headers, labels, and sheet switching", () =>
     const container = new FakeElement("div");
     const view = createSpreadsheetView({ container, workbook });
 
-    const title = container.children[0];
-    const table = container.children[1];
+    const heading = container.children[0];
+    const title = heading.children[0];
+    const tabs = heading.children[1];
+    const formulaRow = container.children[1];
+    const table = container.children[2];
     const headerRow = table.children[0];
     const firstDataRow = table.children[1];
     const secondDataRow = table.children[2];
     const firstInput = firstDataRow.children[1].children[0];
+    const formulaInput = formulaRow.children[1];
+    const addSheetButton = tabs.children[tabs.children.length - 1];
 
     assert.equal(title.textContent, "Alpha");
     assert.equal(table.getAttribute("aria-label"), "Alpha worksheet");
@@ -168,20 +217,30 @@ test("createSpreadsheetView renders headers, labels, and sheet switching", () =>
     assert.equal(firstDataRow.children[0].textContent, "1");
     assert.equal(secondDataRow.children.length, headerRow.children.length);
     assert.equal(firstInput.getAttribute("aria-label"), "Alpha A1");
+    assert.equal(formulaInput.value, "=LOWER(\"A1\")");
 
     firstInput.value = "changed";
     firstInput.dispatchEvent("input");
     assert.equal(workbook.getCell(0, 0, 0).value, "changed");
     assert.equal(workbook.getCell(0, 0, 0).formula, null);
 
+    formulaInput.value = "=UPPER(\"A1\")";
+    formulaInput.dispatchEvent("input");
+    assert.equal(workbook.getCell(0, 0, 0).formula, "=UPPER(\"A1\")");
+
     view.setActiveSheet(1);
-    assert.equal(container.children[0].textContent, "Beta");
-    assert.equal(container.children[1].children[1].children[1].children[0].value, "X1");
+    assert.equal(container.children[0].children[0].textContent, "Beta");
+    assert.equal(container.children[2].children[1].children[1].children[0].value, "X1");
+    assert.equal(view.getActiveSheet(), 1);
 
     firstInput.value = "alpha-again";
     firstInput.dispatchEvent("input");
     assert.equal(workbook.getCell(0, 0, 0).value, "alpha-again");
     assert.equal(workbook.getCell(1, 0, 0).value, "X1");
+
+    addSheetButton.dispatchEvent("click");
+    assert.equal(workbook.listSheets().length, 3);
+    assert.equal(container.children[0].children[0].textContent, "Sheet3");
   });
 });
 

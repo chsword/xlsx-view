@@ -1,13 +1,33 @@
-function createInput(cell, label, onChange) {
+function applyInputStyle(input, cell) {
+    const style = (cell?.style ?? {});
+    input.style.width = "100%";
+    input.style.boxSizing = "border-box";
+    input.style.border = "0";
+    input.style.outline = "none";
+    input.style.background = "transparent";
+    input.style.fontWeight = style.bold ? "700" : "400";
+    input.style.fontStyle = style.italic ? "italic" : "normal";
+    input.style.textDecoration = style.underline ? "underline" : "none";
+    input.style.color = typeof style.textColor === "string" ? style.textColor : "#111";
+    input.style.backgroundColor = typeof style.backgroundColor === "string" ? style.backgroundColor : "transparent";
+    input.style.textAlign = typeof style.align === "string" ? style.align : "left";
+}
+function createInput(cell, label, selected, onChange, onSelect) {
     const input = document.createElement("input");
     input.type = "text";
     input.value = String(cell?.value ?? "");
     input.dataset.formula = cell?.formula ?? "";
     input.placeholder = "Cell";
     input.setAttribute("aria-label", label);
+    applyInputStyle(input, cell);
+    if (selected) {
+        input.style.outline = "2px solid #3b82f6";
+    }
     input.addEventListener("input", (event) => {
         onChange(event.target.value);
     });
+    input.addEventListener("focus", onSelect);
+    input.addEventListener("click", onSelect);
     return input;
 }
 function getColumnLabel(columnIndex) {
@@ -19,6 +39,9 @@ function getColumnLabel(columnIndex) {
     } while (current >= 0);
     return label;
 }
+function getCellAddress(rowIndex, columnIndex) {
+    return `${getColumnLabel(columnIndex)}${rowIndex + 1}`;
+}
 export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
     if (!container) {
         throw new Error("container is required");
@@ -29,6 +52,8 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
     const resolvedContainer = container;
     const resolvedWorkbook = workbook;
     let activeSheet = sheet;
+    let selectedRow = 0;
+    let selectedColumn = 0;
     function render() {
         const renderedSheet = activeSheet;
         const sheetModel = resolvedWorkbook.getSheet(activeSheet);
@@ -36,9 +61,88 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
             throw new Error(`Unknown sheet: ${activeSheet}`);
         }
         resolvedContainer.innerHTML = "";
+        const heading = document.createElement("div");
+        heading.style.display = "flex";
+        heading.style.alignItems = "center";
+        heading.style.justifyContent = "space-between";
+        heading.style.gap = "12px";
         const title = document.createElement("h2");
         title.textContent = sheetModel.name;
-        resolvedContainer.appendChild(title);
+        title.style.margin = "0";
+        heading.appendChild(title);
+        const sheetTabs = document.createElement("div");
+        sheetTabs.style.display = "flex";
+        sheetTabs.style.flexWrap = "wrap";
+        sheetTabs.style.gap = "6px";
+        resolvedWorkbook.listSheets().forEach((name, index) => {
+            const tab = document.createElement("button");
+            tab.type = "button";
+            tab.textContent = name;
+            tab.style.padding = "4px 8px";
+            tab.style.cursor = "pointer";
+            tab.style.border = "1px solid #999";
+            tab.style.background = index === renderedSheet ? "#dbeafe" : "#fff";
+            tab.addEventListener("click", () => {
+                activeSheet = index;
+                selectedRow = 0;
+                selectedColumn = 0;
+                render();
+            });
+            sheetTabs.appendChild(tab);
+        });
+        const addSheetButton = document.createElement("button");
+        addSheetButton.type = "button";
+        addSheetButton.textContent = "+";
+        addSheetButton.style.padding = "4px 8px";
+        addSheetButton.style.cursor = "pointer";
+        addSheetButton.style.border = "1px solid #999";
+        addSheetButton.style.background = "#fff";
+        addSheetButton.addEventListener("click", () => {
+            resolvedWorkbook.addSheet();
+            activeSheet = resolvedWorkbook.listSheets().length - 1;
+            selectedRow = 0;
+            selectedColumn = 0;
+            render();
+        });
+        sheetTabs.appendChild(addSheetButton);
+        heading.appendChild(sheetTabs);
+        resolvedContainer.appendChild(heading);
+        const formulaRow = document.createElement("div");
+        formulaRow.style.display = "flex";
+        formulaRow.style.gap = "8px";
+        formulaRow.style.margin = "8px 0";
+        const nameBox = document.createElement("input");
+        nameBox.type = "text";
+        nameBox.value = getCellAddress(selectedRow, selectedColumn);
+        nameBox.setAttribute("aria-label", "Selected cell");
+        nameBox.style.width = "80px";
+        nameBox.readOnly = true;
+        formulaRow.appendChild(nameBox);
+        const formulaInput = document.createElement("input");
+        formulaInput.type = "text";
+        formulaInput.placeholder = "Formula or value";
+        formulaInput.style.flex = "1";
+        formulaInput.setAttribute("aria-label", "Formula bar");
+        const selectedCell = resolvedWorkbook.getCell(renderedSheet, selectedRow, selectedColumn);
+        formulaInput.value = String(selectedCell?.formula ?? selectedCell?.value ?? "");
+        formulaInput.addEventListener("input", (event) => {
+            const value = event.target.value;
+            if (value.startsWith("=")) {
+                resolvedWorkbook.updateCell(renderedSheet, selectedRow, selectedColumn, {
+                    value,
+                    formula: value
+                });
+            }
+            else {
+                resolvedWorkbook.updateCell(renderedSheet, selectedRow, selectedColumn, {
+                    value,
+                    formula: null
+                });
+            }
+            render();
+        });
+        formulaRow.appendChild(formulaInput);
+        resolvedContainer.appendChild(formulaRow);
         const table = document.createElement("table");
         table.style.borderCollapse = "collapse";
         table.style.border = "1px solid #999";
@@ -48,7 +152,7 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
         corner.scope = "col";
         corner.textContent = "#";
         headerRow.appendChild(corner);
-        const maxColumns = Math.max(5, ...sheetModel.rows.map((row) => row.length));
+        const maxColumns = Math.max(12, ...sheetModel.rows.map((row) => row.length));
         for (let columnIndex = 0; columnIndex < maxColumns; columnIndex += 1) {
             const th = document.createElement("th");
             th.scope = "col";
@@ -58,7 +162,7 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
             headerRow.appendChild(th);
         }
         table.appendChild(headerRow);
-        const rowCount = Math.max(5, sheetModel.rows.length);
+        const rowCount = Math.max(20, sheetModel.rows.length);
         for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
             const row = sheetModel.rows[rowIndex] ?? [];
             const tr = document.createElement("tr");
@@ -73,8 +177,12 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
                 const td = document.createElement("td");
                 td.style.border = "1px solid #999";
                 td.style.padding = "4px";
-                td.appendChild(createInput(cell, `${sheetModel.name} ${getColumnLabel(columnIndex)}${rowIndex + 1}`, (value) => {
+                td.appendChild(createInput(cell, `${sheetModel.name} ${getCellAddress(rowIndex, columnIndex)}`, selectedRow === rowIndex && selectedColumn === columnIndex, (value) => {
                     resolvedWorkbook.updateCell(renderedSheet, rowIndex, columnIndex, { value, formula: null });
+                }, () => {
+                    selectedRow = rowIndex;
+                    selectedColumn = columnIndex;
+                    render();
                 }));
                 tr.appendChild(td);
             }
@@ -90,7 +198,12 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
                 throw new Error(`Unknown sheet: ${nextSheet}`);
             }
             activeSheet = nextSheet;
+            selectedRow = 0;
+            selectedColumn = 0;
             render();
+        },
+        getActiveSheet() {
+            return activeSheet;
         }
     };
 }
