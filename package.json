@@ -1,0 +1,25 @@
+{
+  "name": "xlsx-view",
+  "version": "1.0.0",
+  "description": "A lightweight xlsx-oriented workbook model and browser spreadsheet view scaffold.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src",
+    "examples"
+  ],
+  "scripts": {
+    "test": "node --test"
+  },
+  "keywords": [
+    "xlsx",
+    "spreadsheet",
+    "viewer",
+    "editor"
+  ],
+  "author": "",
+  "license": "ISC"
+}
