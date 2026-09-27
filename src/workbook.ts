@@ -36,6 +36,17 @@ type AddSheetOperation = {
   rows?: CellInput[][];
 };
 
+type RenameSheetOperation = {
+  type: "renameSheet";
+  sheet?: SheetReference;
+  name: string;
+};
+
+type RemoveSheetOperation = {
+  type: "removeSheet";
+  sheet?: SheetReference;
+};
+
 type SetCellOperation = {
   type: "setCell";
   sheet?: SheetReference;
@@ -52,17 +63,61 @@ type UpdateCellOperation = {
   detail?: CellUpdate;
 };
 
-export type WorkbookOperation = AddSheetOperation | SetCellOperation | UpdateCellOperation;
+type InsertRowOperation = {
+  type: "insertRow";
+  sheet?: SheetReference;
+  row: number;
+  count?: number;
+};
+
+type DeleteRowOperation = {
+  type: "deleteRow";
+  sheet?: SheetReference;
+  row: number;
+  count?: number;
+};
+
+type InsertColumnOperation = {
+  type: "insertColumn";
+  sheet?: SheetReference;
+  column: number;
+  count?: number;
+};
+
+type DeleteColumnOperation = {
+  type: "deleteColumn";
+  sheet?: SheetReference;
+  column: number;
+  count?: number;
+};
+
+export type WorkbookOperation =
+  | AddSheetOperation
+  | RenameSheetOperation
+  | RemoveSheetOperation
+  | SetCellOperation
+  | UpdateCellOperation
+  | InsertRowOperation
+  | DeleteRowOperation
+  | InsertColumnOperation
+  | DeleteColumnOperation;
 
 export interface Workbook {
   listSheets(): string[];
   getSheet(sheetRef?: SheetReference): Sheet | undefined;
   addSheet(name?: string, rows?: CellInput[][]): Sheet;
+  renameSheet(sheetRef: SheetReference, name: string): Sheet;
+  removeSheet(sheetRef: SheetReference): Sheet;
+  insertRow(sheetRef: SheetReference, rowIndex: number, count?: number): Sheet;
+  deleteRow(sheetRef: SheetReference, rowIndex: number, count?: number): Sheet;
+  insertColumn(sheetRef: SheetReference, columnIndex: number, count?: number): Sheet;
+  deleteColumn(sheetRef: SheetReference, columnIndex: number, count?: number): Sheet;
   getCell(rowIndex: number, columnIndex: number): Cell | null;
   getCell(sheetRef: SheetReference, rowIndex: number, columnIndex: number): Cell | null;
   setCell(sheetRef: SheetReference, rowIndex: number, columnIndex: number, value: unknown): Cell;
   updateCell(sheetRef: SheetReference, rowIndex: number, columnIndex: number, detail?: CellUpdate): Cell;
   applyOperation(operation: WorkbookOperation): Sheet | Cell;
+  applyOperations(operations: WorkbookOperation[]): Array<Sheet | Cell>;
   toJSON(): WorkbookSnapshot;
 }
 
@@ -127,6 +182,12 @@ function validateCoordinates(rowIndex: number, columnIndex: number): void {
   }
 }
 
+function validateCount(count: number): void {
+  if (!Number.isInteger(count) || count < 1) {
+    throw new Error(`Invalid count: ${count}`);
+  }
+}
+
 export function createWorkbook(options: { sheets?: SheetInput[] } = {}): Workbook {
   const workbook: WorkbookSnapshot = {
     sheets: (options.sheets?.length ? options.sheets : [{ name: "Sheet1", rows: [[]] }]).map((sheet, index) =>
@@ -144,6 +205,119 @@ export function createWorkbook(options: { sheets?: SheetInput[] } = {}): Workboo
     addSheet(name, rows = [[]]) {
       const sheet = normalizeSheet({ name, rows }, workbook.sheets.length);
       workbook.sheets.push(sheet);
+      return sheet;
+    },
+    renameSheet(sheetRef, name) {
+      if (!name || !name.trim()) {
+        throw new Error("Sheet name is required");
+      }
+
+      const sheet = resolveSheet(workbook, sheetRef);
+      if (!sheet) {
+        throw new Error(`Unknown sheet: ${sheetRef}`);
+      }
+
+      sheet.name = name.trim();
+      return sheet;
+    },
+    removeSheet(sheetRef) {
+      const index =
+        typeof sheetRef === "number"
+          ? sheetRef
+          : workbook.sheets.findIndex((sheet) => sheet.name === sheetRef);
+
+      if (index < 0 || index >= workbook.sheets.length) {
+        throw new Error(`Unknown sheet: ${sheetRef}`);
+      }
+
+      if (workbook.sheets.length === 1) {
+        throw new Error("Workbook must contain at least one sheet");
+      }
+
+      return workbook.sheets.splice(index, 1)[0];
+    },
+    insertRow(sheetRef, rowIndex, count = 1) {
+      const sheet = resolveSheet(workbook, sheetRef);
+
+      if (!sheet) {
+        throw new Error(`Unknown sheet: ${sheetRef}`);
+      }
+
+      validateCoordinates(rowIndex, 0);
+      validateCount(count);
+      const maxColumns = Math.max(1, ...sheet.rows.map((row) => row.length));
+      const newRows = Array.from({ length: count }, () =>
+        Array.from({ length: maxColumns }, () => normalizeCell(""))
+      );
+
+      if (rowIndex > sheet.rows.length) {
+        while (sheet.rows.length < rowIndex) {
+          sheet.rows.push(Array.from({ length: maxColumns }, () => normalizeCell("")));
+        }
+      }
+
+      sheet.rows.splice(rowIndex, 0, ...newRows);
+      return sheet;
+    },
+    deleteRow(sheetRef, rowIndex, count = 1) {
+      const sheet = resolveSheet(workbook, sheetRef);
+
+      if (!sheet) {
+        throw new Error(`Unknown sheet: ${sheetRef}`);
+      }
+
+      validateCoordinates(rowIndex, 0);
+      validateCount(count);
+      if (rowIndex >= sheet.rows.length) {
+        return sheet;
+      }
+
+      sheet.rows.splice(rowIndex, count);
+      if (sheet.rows.length === 0) {
+        sheet.rows.push([]);
+      }
+      return sheet;
+    },
+    insertColumn(sheetRef, columnIndex, count = 1) {
+      const sheet = resolveSheet(workbook, sheetRef);
+
+      if (!sheet) {
+        throw new Error(`Unknown sheet: ${sheetRef}`);
+      }
+
+      validateCoordinates(0, columnIndex);
+      validateCount(count);
+      const rowCount = Math.max(1, sheet.rows.length);
+      while (sheet.rows.length < rowCount) {
+        sheet.rows.push([]);
+      }
+
+      for (const row of sheet.rows) {
+        while (row.length < columnIndex) {
+          row.push(normalizeCell(""));
+        }
+        const newCells = Array.from({ length: count }, () => normalizeCell(""));
+        row.splice(columnIndex, 0, ...newCells);
+      }
+
+      return sheet;
+    },
+    deleteColumn(sheetRef, columnIndex, count = 1) {
+      const sheet = resolveSheet(workbook, sheetRef);
+
+      if (!sheet) {
+        throw new Error(`Unknown sheet: ${sheetRef}`);
+      }
+
+      validateCoordinates(0, columnIndex);
+      validateCount(count);
+
+      for (const row of sheet.rows) {
+        if (columnIndex < row.length) {
+          row.splice(columnIndex, count);
+        }
+      }
+
       return sheet;
     },
     getCell(sheetRef: SheetReference | number, rowIndex?: number, columnIndex?: number) {
@@ -203,13 +377,28 @@ export function createWorkbook(options: { sheets?: SheetInput[] } = {}): Workboo
       switch (operation?.type) {
         case "addSheet":
           return this.addSheet(operation.name, operation.rows);
+        case "renameSheet":
+          return this.renameSheet(operation.sheet ?? 0, operation.name);
+        case "removeSheet":
+          return this.removeSheet(operation.sheet ?? 0);
         case "setCell":
           return this.setCell(operation.sheet ?? 0, operation.row, operation.column, operation.value);
         case "updateCell":
           return this.updateCell(operation.sheet ?? 0, operation.row, operation.column, operation.detail);
+        case "insertRow":
+          return this.insertRow(operation.sheet ?? 0, operation.row, operation.count);
+        case "deleteRow":
+          return this.deleteRow(operation.sheet ?? 0, operation.row, operation.count);
+        case "insertColumn":
+          return this.insertColumn(operation.sheet ?? 0, operation.column, operation.count);
+        case "deleteColumn":
+          return this.deleteColumn(operation.sheet ?? 0, operation.column, operation.count);
         default:
           throw new Error(`Unsupported operation: ${(operation as { type?: string } | undefined)?.type}`);
       }
+    },
+    applyOperations(operations) {
+      return operations.map((operation) => this.applyOperation(operation));
     },
     toJSON() {
       return {

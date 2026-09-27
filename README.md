@@ -3,10 +3,10 @@
 一个轻量级的 xlsx 所见即所得 TypeScript 组件库初始化版本，当前包含：
 
 - 一个可在浏览器中直接使用的工作簿模型 API
-- 一个最小可编辑的表格视图组件
+- 一个带 sheet tab、公式栏、单元格选中态的可编辑表格视图组件
 - 一个静态 `examples` 演示页面
 - 一个仓库根目录的 GitHub Pages 预览页面
-- 面向 AI Agent 的操作接口（`applyOperation`）
+- 面向 AI Agent 的操作接口（`applyOperation` / `applyOperations`）
 
 ## 快速开始
 
@@ -37,12 +37,17 @@ const workbook = createWorkbook({
 
 workbook.setCell(0, 1, 0, "A2");
 workbook.updateCell(0, 1, 0, { style: { bold: true }, comment: "editable" });
+workbook.insertRow("Sheet1", 1);
+workbook.insertColumn("Sheet1", 1);
+workbook.renameSheet("Sheet1", "Budget");
+workbook.applyOperations([
+  { type: "setCell", sheet: "Budget", row: 1, column: 1, value: "B2" },
+  { type: "updateCell", sheet: "Budget", row: 1, column: 1, detail: { formula: "=SUM(A2:B2)" } }
+]);
 workbook.applyOperation({
-  type: "setCell",
-  sheet: "Sheet1",
-  row: 1,
-  column: 1,
-  value: "B2"
+  type: "deleteColumn",
+  sheet: "Budget",
+  column: 3
 });
 
 createSpreadsheetView({
@@ -53,7 +58,7 @@ createSpreadsheetView({
 
 ## 当前范围
 
-这是一个初始化版本，先提供统一的数据模型、基础视图、TypeScript 类型定义与 Agent 操作入口，后续可以在这个骨架上继续补充更细粒度的 Open XML 能力、样式能力与真实 xlsx 读写能力。
+这是一个初始化版本，已提供统一数据模型、基础样式渲染、工作表结构化操作能力与 Agent 操作入口，后续可以在这个骨架上继续补充更细粒度的 Open XML 能力、样式能力与真实 xlsx 读写能力。
 
 ## GitHub Pages
 
