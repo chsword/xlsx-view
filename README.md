@@ -57,4 +57,10 @@ createSpreadsheetView({
 
 ## GitHub Pages
 
-仓库根目录提供了 `index.html` + `main.js` 预览入口，构建产物位于 `dist/`。开启 GitHub Pages 的 branch root 发布后，可以直接使用该页面作为在线预览入口。
+在线预览地址：https://chsword.github.io/xlsx-view/
+
+首次启用需要仓库管理员在 **Settings → Pages → Build and deployment → Source** 中选择 **GitHub Actions**。
+
+`.github/workflows/pages.yml` 会在默认分支 `main` 更新时自动安装依赖、构建并测试，通过后发布预览站点。也可以在 **Actions → Deploy GitHub Pages → Run workflow** 中选择 `main` 手动发布；其他分支的手动运行会跳过部署。如果更改默认分支名称，需要同步更新工作流的 `push.branches`。
+
+部署内容仅包含根目录的 `index.html`、`main.js`、构建产物 `dist/` 和 `examples/`，保留相对路径以支持 `/xlsx-view/` 项目站点。静态示例地址为 https://chsword.github.io/xlsx-view/examples/ 。首次部署成功后即可访问；无需将仓库根目录配置为 branch root 发布。
