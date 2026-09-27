@@ -37,6 +37,10 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
   function render() {
     const sheetModel = workbook.getSheet(activeSheet);
 
+    if (!sheetModel) {
+      throw new Error(`Unknown sheet: ${activeSheet}`);
+    }
+
     container.innerHTML = "";
 
     const title = document.createElement("h2");
@@ -44,9 +48,8 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
     container.appendChild(title);
 
     const table = document.createElement("table");
-    table.border = "1";
-    table.cellPadding = "4";
     table.style.borderCollapse = "collapse";
+    table.style.border = "1px solid #999";
     table.setAttribute("aria-label", `${sheetModel?.name ?? "Sheet"} worksheet`);
 
     const headerRow = document.createElement("tr");
@@ -60,6 +63,8 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
       const th = document.createElement("th");
       th.scope = "col";
       th.textContent = getColumnLabel(columnIndex);
+      th.style.border = "1px solid #999";
+      th.style.padding = "4px";
       headerRow.appendChild(th);
     }
     table.appendChild(headerRow);
@@ -69,16 +74,21 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
       const rowHeader = document.createElement("th");
       rowHeader.scope = "row";
       rowHeader.textContent = String(rowIndex + 1);
+      rowHeader.style.border = "1px solid #999";
+      rowHeader.style.padding = "4px";
       tr.appendChild(rowHeader);
-      row.forEach((cell, columnIndex) => {
+      for (let columnIndex = 0; columnIndex < maxColumns; columnIndex += 1) {
+        const cell = row[columnIndex];
         const td = document.createElement("td");
+        td.style.border = "1px solid #999";
+        td.style.padding = "4px";
         td.appendChild(
           createInput(cell, `${sheetModel?.name ?? "Sheet"} ${getColumnLabel(columnIndex)}${rowIndex + 1}`, (value) => {
             workbook.setCell(activeSheet, rowIndex, columnIndex, value);
           })
         );
         tr.appendChild(td);
-      });
+      }
       table.appendChild(tr);
     });
 

@@ -127,7 +127,7 @@ test("createSpreadsheetView validates required arguments", () => {
 test("createSpreadsheetView renders headers, labels, and sheet switching", () => {
   const workbook = createWorkbook({
     sheets: [
-      { name: "Alpha", rows: [[{ value: "A1" }, { value: "B1" }]] },
+      { name: "Alpha", rows: [[{ value: "A1" }, { value: "B1" }], [{ value: "A2" }]] },
       { name: "Beta", rows: [[{ value: "X1" }]] }
     ]
   });
@@ -140,12 +140,14 @@ test("createSpreadsheetView renders headers, labels, and sheet switching", () =>
     const table = container.children[1];
     const headerRow = table.children[0];
     const firstDataRow = table.children[1];
+    const secondDataRow = table.children[2];
     const firstInput = firstDataRow.children[1].children[0];
 
     assert.equal(title.textContent, "Alpha");
     assert.equal(table.getAttribute("aria-label"), "Alpha worksheet");
     assert.deepEqual(headerRow.children.map((child) => child.textContent), ["#", "A", "B"]);
     assert.equal(firstDataRow.children[0].textContent, "1");
+    assert.equal(secondDataRow.children.length, headerRow.children.length);
     assert.equal(firstInput.getAttribute("aria-label"), "Alpha A1");
 
     firstInput.value = "changed";
@@ -155,5 +157,16 @@ test("createSpreadsheetView renders headers, labels, and sheet switching", () =>
     view.setActiveSheet(1);
     assert.equal(container.children[0].textContent, "Beta");
     assert.equal(container.children[1].children[1].children[1].children[0].value, "X1");
+  });
+});
+
+test("createSpreadsheetView rejects unknown sheets", () => {
+  const workbook = createWorkbook();
+
+  withFakeDocument(() => {
+    const container = new FakeElement("div");
+    const view = createSpreadsheetView({ container, workbook });
+
+    assert.throws(() => view.setActiveSheet(3), /Unknown sheet: 3/);
   });
 });
