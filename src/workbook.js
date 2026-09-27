@@ -51,7 +51,9 @@ function ensureCell(sheet, rowIndex, columnIndex) {
 
 export function createWorkbook(options = {}) {
   const workbook = {
-    sheets: (options.sheets?.length ? options.sheets : [{ name: "Sheet1", rows: [[]] }]).map(normalizeSheet)
+    sheets: (options.sheets?.length ? options.sheets : [{ name: "Sheet1", rows: [[]] }]).map((sheet, index) =>
+      normalizeSheet(sheet, index)
+    )
   };
 
   return {
