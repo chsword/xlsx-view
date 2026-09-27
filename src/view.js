@@ -59,7 +59,7 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
     corner.textContent = "#";
     headerRow.appendChild(corner);
 
-    const maxColumns = Math.max(0, ...(sheetModel?.rows ?? [[]]).map((row) => row.length));
+    const maxColumns = Math.max(5, ...(sheetModel?.rows ?? [[]]).map((row) => row.length));
     for (let columnIndex = 0; columnIndex < maxColumns; columnIndex += 1) {
       const th = document.createElement("th");
       th.scope = "col";
@@ -70,7 +70,10 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
     }
     table.appendChild(headerRow);
 
-    (sheetModel?.rows ?? [[]]).forEach((row, rowIndex) => {
+    const rowCount = Math.max(5, sheetModel?.rows?.length ?? 0);
+
+    for (let rowIndex = 0; rowIndex < rowCount; rowIndex += 1) {
+      const row = sheetModel?.rows?.[rowIndex] ?? [];
       const tr = document.createElement("tr");
       const rowHeader = document.createElement("th");
       rowHeader.scope = "row";
@@ -91,7 +94,7 @@ export function createSpreadsheetView({ container, workbook, sheet = 0 } = {}) {
         tr.appendChild(td);
       }
       table.appendChild(tr);
-    });
+    }
 
     container.appendChild(table);
   }

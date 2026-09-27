@@ -79,6 +79,12 @@ export function createWorkbook(options = {}) {
       return sheet;
     },
     getCell(sheetRef, rowIndex, columnIndex) {
+      if (columnIndex === undefined) {
+        columnIndex = rowIndex;
+        rowIndex = sheetRef;
+        sheetRef = 0;
+      }
+
       const sheet = resolveSheet(workbook, sheetRef);
       return sheet?.rows?.[rowIndex]?.[columnIndex] ?? null;
     },

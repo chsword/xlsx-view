@@ -21,6 +21,7 @@ test("createWorkbook exposes a default sheet and cell operations", () => {
     style: { bold: true },
     comment: "seed"
   });
+  assert.equal(workbook.getCell(0, 0).value, "hello");
 });
 
 test("createWorkbook can apply agent-friendly operations by sheet name", () => {
@@ -57,6 +58,12 @@ test("createWorkbook rejects invalid sheet and coordinate references", () => {
   assert.throws(() => workbook.updateCell("Missing", 0, 0, {}), /Unknown sheet: Missing/);
   assert.throws(() => workbook.setCell(0, -1, 0, "x"), /Invalid row index: -1/);
   assert.throws(() => workbook.updateCell(0, 0, -1, {}), /Invalid column index: -1/);
+});
+
+test("createWorkbook rejects unsupported operations", () => {
+  const workbook = createWorkbook();
+
+  assert.throws(() => workbook.applyOperation({ type: "unknown" }), /Unsupported operation: unknown/);
 });
 
 class FakeElement {
@@ -154,7 +161,7 @@ test("createSpreadsheetView renders headers, labels, and sheet switching", () =>
 
     assert.equal(title.textContent, "Alpha");
     assert.equal(table.getAttribute("aria-label"), "Alpha worksheet");
-    assert.deepEqual(headerRow.children.map((child) => child.textContent), ["#", "A", "B"]);
+    assert.deepEqual(headerRow.children.slice(0, 3).map((child) => child.textContent), ["#", "A", "B"]);
     assert.equal(firstDataRow.children[0].textContent, "1");
     assert.equal(secondDataRow.children.length, headerRow.children.length);
     assert.equal(firstInput.getAttribute("aria-label"), "Alpha A1");
@@ -178,6 +185,11 @@ test("createSpreadsheetView rejects unknown sheets", () => {
   const workbook = createWorkbook();
 
   withFakeDocument(() => {
+    assert.throws(
+      () => createSpreadsheetView({ container: new FakeElement("div"), workbook, sheet: 3 }),
+      /Unknown sheet: 3/
+    );
+
     const container = new FakeElement("div");
     const view = createSpreadsheetView({ container, workbook });
 
