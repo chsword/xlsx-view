@@ -58,6 +58,7 @@ test("createWorkbook rejects invalid sheet and coordinate references", () => {
   assert.throws(() => workbook.updateCell("Missing", 0, 0, {}), /Unknown sheet: Missing/);
   assert.throws(() => workbook.getCell(0, -1, 0), /Invalid row index: -1/);
   assert.throws(() => workbook.getCell(0, 0.5, 0), /Invalid row index: 0.5/);
+  assert.throws(() => workbook.getCell(0, 0, -1), /Invalid column index: -1/);
   assert.throws(() => workbook.setCell(0, -1, 0, "x"), /Invalid row index: -1/);
   assert.throws(() => workbook.updateCell(0, 0, -1, {}), /Invalid column index: -1/);
 });
